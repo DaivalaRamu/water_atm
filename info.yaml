@@ -2,13 +2,12 @@ yaml_version: 6
 
 project:
   title: "Water ATM Controller"
-  author: "Teamkanyarashi"
-  description: "FSM-based Water ATM that dispenses water based on inserted coin and flow sensor pulses."
+  author: "Raghu Daivala"
+  description: "Water ATM using FSM that dispenses water based on inserted coins and flow sensor pulses."
   language: "Verilog"
   clock_hz: 100000
 
   top_module: "tt_um_water_atm"
-
   source_files:
     - project.v
 
@@ -24,7 +23,7 @@ pinout:
   ui[6]: "Unused"
   ui[7]: "Unused"
 
-  uo[0]: "Valve ON/OFF"
+  uo[0]: "Valve"
   uo[1]: "Liters bit0"
   uo[2]: "Liters bit1"
   uo[3]: "Liters bit2"
