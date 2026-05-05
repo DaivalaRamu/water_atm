@@ -3,7 +3,7 @@ yaml_version: 6
 project:
   title: "Water ATM Controller"
   author: "Raghu Daivala"
-  description: "FSM-based water ATM that dispenses water based on inserted coins and flow sensor pulses."
+  description: "FSM-based water ATM system using coin inputs and flow sensor pulses."
   language: "Verilog"
   clock_hz: 100000
 
