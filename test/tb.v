@@ -1,100 +1,78 @@
-`default_nettype none
-`timescale 1ns / 1ps
+# SPDX-License-Identifier: Apache-2.0
 
-module tb ();
-  reg clk;
-  reg rst_n;
-  reg ena;
-  reg [7:0] ui_in;
-  reg [7:0] uio_in;
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import ClockCycles
 
-  wire [7:0] uo_out;
-  wire [7:0] uio_out;
-  wire [7:0] uio_oe;
 
-`ifdef GL_TEST
-  wire VPWR = 1'b1;
-  wire VGND = 1'b0;
-`endif
+def get_outputs(dut):
+    val = dut.uo_out.value.to_unsigned()
+    liters = (val >> 1) & 0x7F
+    valve = val & 0x1
+    return liters, valve
 
-  // -------- DUT --------
-  tt_um_water_atm user_project (
 
-`ifdef GL_TEST
-      .VPWR(VPWR),
-      .VGND(VGND),
-`endif
+async def insert_coin(dut, bit):
+    dut.ui_in.value = (1 << bit)
+    await ClockCycles(dut.clk, 1)
+    dut.ui_in.value = 0
+    await ClockCycles(dut.clk, 6)
 
-      .ui_in  (ui_in),
-      .uo_out (uo_out),
-      .uio_in (uio_in),
-      .uio_out(uio_out),
-      .uio_oe (uio_oe),
-      .ena    (ena),
-      .clk    (clk),
-      .rst_n  (rst_n)
-  );
 
-  // -------- CLOCK --------
-  always #5 clk = ~clk;
+async def flow_pulse(dut):
+    dut.ui_in.value = (1 << 4)
+    await ClockCycles(dut.clk, 4)
+    dut.ui_in.value = 0
+    await ClockCycles(dut.clk, 3)
 
-  // -------- TEST --------
-  initial begin
-    clk = 0;
-    rst_n = 0;
-    ena = 1;
-    ui_in = 0;
-    uio_in = 0;
 
-    // Reset
-    #20;
-    rst_n = 1;
+async def give_flow(dut, count):
+    for _ in range(count):
+        await flow_pulse(dut)
 
-    // -------- ₹1 TEST --------
-    // coin_1 = ui_in[0]
-    #10 ui_in[0] = 1;  
-    #10 ui_in[0] = 0;
 
-    repeat (2) begin
-      #10 ui_in[4] = 1;  // flow_sensor
-      #10 ui_in[4] = 0;
-    end
+async def wait_for_liters(dut, expected):
+    for _ in range(50):
+        liters, valve = get_outputs(dut)
+        if liters == expected:
+            return liters, valve
+        await ClockCycles(dut.clk, 1)
+    return liters, valve
 
-    #100;
 
-    // -------- ₹2 TEST --------
-    #10 ui_in[1] = 1;
-    #10 ui_in[1] = 0;
+@cocotb.test()
+async def test_water_atm(dut):
 
-    repeat (5) begin
-      #10 ui_in[4] = 1;
-      #10 ui_in[4] = 0;
-    end
+    clock = Clock(dut.clk, 10, unit="us")
+    cocotb.start_soon(clock.start())
 
-    #100;
+    dut.ena.value = 1
+    dut.ui_in.value = 0
+    dut.uio_in.value = 0
+    dut.rst_n.value = 0
+    await ClockCycles(dut.clk, 10)
+    dut.rst_n.value = 1
 
-    // -------- ₹5 TEST --------
-    #10 ui_in[2] = 1;
-    #10 ui_in[2] = 0;
+    # ₹1
+    await insert_coin(dut, 0)
+    await give_flow(dut, 2)
+    liters, valve = await wait_for_liters(dut, 2)
+    assert liters == 2
 
-    repeat (20) begin
-      #10 ui_in[4] = 1;
-      #10 ui_in[4] = 0;
-    end
+    # ₹2
+    await insert_coin(dut, 1)
+    await give_flow(dut, 5)
+    liters, _ = await wait_for_liters(dut, 5)
+    assert liters == 5
 
-    #100;
+    # ₹5
+    await insert_coin(dut, 2)
+    await give_flow(dut, 20)
+    liters, _ = await wait_for_liters(dut, 20)
+    assert liters == 20
 
-    // -------- ₹10 TEST --------
-    #10 ui_in[3] = 1;
-    #10 ui_in[3] = 0;
-
-    repeat (40) begin
-      #10 ui_in[4] = 1;
-      #10 ui_in[4] = 0;
-    end
-
-    #200;
-    $finish;
-  end
-
-endmodule
+    # ₹10
+    await insert_coin(dut, 3)
+    await give_flow(dut, 40)
+    liters, _ = await wait_for_liters(dut, 40)
+    assert liters == 40
