@@ -1,6 +1,6 @@
 project:
   title: "Water ATM Controller"
-  author: "Teamkanyarashi"
+  author: "Raghu Daivala"
   description: "FSM-based Water ATM that dispenses water based on inserted coin and flow sensor pulses."
   language: "Verilog"
   clock_hz: 100000
