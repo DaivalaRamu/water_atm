@@ -16,16 +16,14 @@ async def insert_coin(dut, bit):
     dut.ui_in.value = (1 << bit)
     await ClockCycles(dut.clk, 1)
     dut.ui_in.value = 0
-
-    # Wait FSM to reach DISP safely
+    # Wait for IDLE→SET→DISP + sync latency margin
     await ClockCycles(dut.clk, 6)
 
 
 async def flow_pulse(dut):
-    # Strong pulse for sync
+    # Hold HIGH long enough for 2-FF synchronizer
     dut.ui_in.value = (1 << 4)
     await ClockCycles(dut.clk, 4)
-
     dut.ui_in.value = 0
     await ClockCycles(dut.clk, 3)
 
@@ -37,7 +35,6 @@ async def give_flow(dut, count):
 
 @cocotb.test()
 async def test_water_atm(dut):
-
     clock = Clock(dut.clk, 10, unit="us")
     cocotb.start_soon(clock.start())
 
@@ -49,35 +46,31 @@ async def test_water_atm(dut):
     await ClockCycles(dut.clk, 10)
     dut.rst_n.value = 1
 
-    # -------- ₹1 --------
+    # ₹1 → 2L
     await insert_coin(dut, 0)
     await give_flow(dut, 2)
     await ClockCycles(dut.clk, 10)
-
     liters, valve = get_outputs(dut)
-    assert liters == 2
+    assert liters == 2, f"Expected 2L, got {liters}"
     assert valve == 0
 
-    # -------- ₹2 --------
+    # ₹2 → 5L
     await insert_coin(dut, 1)
     await give_flow(dut, 5)
     await ClockCycles(dut.clk, 10)
-
     liters, _ = get_outputs(dut)
     assert liters == 5
 
-    # -------- ₹5 --------
+    # ₹5 → 20L
     await insert_coin(dut, 2)
     await give_flow(dut, 20)
     await ClockCycles(dut.clk, 20)
-
     liters, _ = get_outputs(dut)
     assert liters == 20
 
-    # -------- ₹10 --------
+    # ₹10 → 40L
     await insert_coin(dut, 3)
     await give_flow(dut, 40)
     await ClockCycles(dut.clk, 30)
-
     liters, _ = get_outputs(dut)
     assert liters == 40
