@@ -12,6 +12,29 @@ def get_outputs(dut):
     return liters, valve
 
 
+async def insert_coin(dut, bit):
+    dut.ui_in.value = (1 << bit)
+    await ClockCycles(dut.clk, 1)
+    dut.ui_in.value = 0
+
+    # Wait FSM to reach DISP safely
+    await ClockCycles(dut.clk, 6)
+
+
+async def flow_pulse(dut):
+    # Strong pulse for sync
+    dut.ui_in.value = (1 << 4)
+    await ClockCycles(dut.clk, 4)
+
+    dut.ui_in.value = 0
+    await ClockCycles(dut.clk, 3)
+
+
+async def give_flow(dut, count):
+    for _ in range(count):
+        await flow_pulse(dut)
+
+
 @cocotb.test()
 async def test_water_atm(dut):
 
@@ -26,76 +49,34 @@ async def test_water_atm(dut):
     await ClockCycles(dut.clk, 10)
     dut.rst_n.value = 1
 
-    # ================= ₹1 TEST =================
-    dut.ui_in.value = 0b00000001
-    await ClockCycles(dut.clk, 1)
-    dut.ui_in.value = 0
-
-    # 🔥 wait FSM to reach DISP (important)
-    await ClockCycles(dut.clk, 5)
-
-    # 🔥 strong pulses (sync-safe)
-    for _ in range(2):
-        dut.ui_in.value = 0b00010000
-        await ClockCycles(dut.clk, 4)
-        dut.ui_in.value = 0
-        await ClockCycles(dut.clk, 2)
-
+    # -------- ₹1 --------
+    await insert_coin(dut, 0)
+    await give_flow(dut, 2)
     await ClockCycles(dut.clk, 10)
 
     liters, valve = get_outputs(dut)
-    assert liters == 2, f"Expected 2L, got {liters}"
+    assert liters == 2
     assert valve == 0
 
-    # ================= ₹2 TEST =================
-    dut.ui_in.value = 0b00000010
-    await ClockCycles(dut.clk, 1)
-    dut.ui_in.value = 0
-
-    await ClockCycles(dut.clk, 5)
-
-    for _ in range(5):
-        dut.ui_in.value = 0b00010000
-        await ClockCycles(dut.clk, 4)
-        dut.ui_in.value = 0
-        await ClockCycles(dut.clk, 2)
-
+    # -------- ₹2 --------
+    await insert_coin(dut, 1)
+    await give_flow(dut, 5)
     await ClockCycles(dut.clk, 10)
 
     liters, _ = get_outputs(dut)
     assert liters == 5
 
-    # ================= ₹5 TEST =================
-    dut.ui_in.value = 0b00000100
-    await ClockCycles(dut.clk, 1)
-    dut.ui_in.value = 0
-
-    await ClockCycles(dut.clk, 5)
-
-    for _ in range(20):
-        dut.ui_in.value = 0b00010000
-        await ClockCycles(dut.clk, 4)
-        dut.ui_in.value = 0
-        await ClockCycles(dut.clk, 2)
-
+    # -------- ₹5 --------
+    await insert_coin(dut, 2)
+    await give_flow(dut, 20)
     await ClockCycles(dut.clk, 20)
 
     liters, _ = get_outputs(dut)
     assert liters == 20
 
-    # ================= ₹10 TEST =================
-    dut.ui_in.value = 0b00001000
-    await ClockCycles(dut.clk, 1)
-    dut.ui_in.value = 0
-
-    await ClockCycles(dut.clk, 5)
-
-    for _ in range(40):
-        dut.ui_in.value = 0b00010000
-        await ClockCycles(dut.clk, 4)
-        dut.ui_in.value = 0
-        await ClockCycles(dut.clk, 2)
-
+    # -------- ₹10 --------
+    await insert_coin(dut, 3)
+    await give_flow(dut, 40)
     await ClockCycles(dut.clk, 30)
 
     liters, _ = get_outputs(dut)
